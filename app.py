@@ -3,9 +3,8 @@
 from flask import Flask, request, send_from_directory, jsonify
 import os
 from agent import run_resume_agent
-from docxtpl import DocxTemplate
-from mammoth import convert_to_html
-import tempfile
+from render import render_resume_html  # Import from render.py
+from save import save_resume_as_docx   # Import from save.py
 
 app = Flask(__name__)
 
@@ -13,67 +12,55 @@ app = Flask(__name__)
 DOWNLOAD_FOLDER = os.path.join(os.getcwd(), "downloads")
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-@app.route("/generate", methods=["POST"])
+@app.route("/generate_resume", methods=["POST"])
 def generate_resume():
     try:
-        # 1. Get the incoming JSON body
+        # 1. Receive candidate info
         data = request.get_json()
+        print("Received candidate info:", data)
 
-        full_name = data.get("full_name")
-        email = data.get("email")
-        phone = data.get("phone")
-        education = data.get("education")
-        skills = data.get("skills")
-        job_description = data.get("job_description")
-        work_experiences = data.get("work_experiences", [])
-
-        # 2. Organize candidate info
         candidate_info = {
-            "full_name": full_name,
-            "email": email,
-            "phone": phone,
-            "education": education,
-            "skills": skills,
-            "work_experiences": work_experiences
+            "full_name": data.get("full_name"),
+            "email": data.get("email"),
+            "phone": data.get("phone"),
+            "education": data.get("education"),
+            "skills": data.get("skills"),
+            "work_experiences": data.get("work_experiences", [])
         }
+        job_description = data.get("job_description")
 
-        # 3. Run the agent process
-        final_resume = run_resume_agent(candidate_info, job_description)
+        print("Received job description:", job_description)
 
-        # 4. Load Word template
-        doc = DocxTemplate("templates/resume_template.docx")
+        # 2. Run the multi-agent process
+        print("Step 1: Analyzing candidate info...")
+        print("Step 2: Filling missing information...")
+        print("Step 3: Drafting resume...")
+        print("Step 4: Reviewing and improving resume...")
+        final_resume_json = run_resume_agent(candidate_info, job_description)
+        print("Generated resume JSON:", final_resume_json)
 
-        context = {
-            "full_name": full_name,
-            "email": email,
-            "phone": phone,
-            "summary": final_resume["summary"],
-            "skills": ', '.join(final_resume["skills"]),
-            "education": final_resume["education"],
-            "experience": final_resume["experience"]
-        }
+        # 3. Render HTML for Bubble preview
+        rendered_resume = render_resume_html(final_resume_json)
 
-        # 5. Render and save .docx
-        output_filename = f"{full_name.replace(' ', '_')}_resume.docx"
-        output_path = os.path.join(DOWNLOAD_FOLDER, output_filename)
-        doc.render(context)
-        doc.save(output_path)
+        # 4. Save Word doc
+        filename = f"{candidate_info['full_name'].replace(' ', '_')}_resume.docx"
+        file_path = save_resume_as_docx(final_resume_json, filename)
 
-        # 6. Convert to HTML for Preview
-        with open(output_path, "rb") as docx_file:
-            result = convert_to_html(docx_file)
-            resume_html = result.value
+        # 5. Create download link
+        download_link = f"/download/{os.path.basename(file_path)}"
 
-        # 7. Return proper JSON (IMPORTANT)
+        # 6. Return the result
         return jsonify({
-            "download_link": f"/download/{output_filename}",
-            "resume_text": resume_html
+            "download_link": download_link,
+            "resume_text": rendered_resume
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 400
+        print("Error in generate_resume:", e)
+        return jsonify({"error": str(e)}), 500
 
-@app.route("/download/<path:filename>")
+# Route to serve downloads
+@app.route("/download/<path:filename>", methods=["GET"])
 def download_file(filename):
     return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
 
