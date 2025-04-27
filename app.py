@@ -1,19 +1,22 @@
 # app.py
 
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, send_from_directory, jsonify
 import os
-import json
 from agent import run_resume_agent
-from docx import Document
-import mammoth
-import uuid
+from docxtpl import DocxTemplate
+from mammoth import convert_to_html
+import tempfile
 
 app = Flask(__name__)
 
-# API route: Generate resume
+# Save generated resumes to a downloads folder
+DOWNLOAD_FOLDER = os.path.join(os.getcwd(), "downloads")
+os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+
 @app.route("/generate", methods=["POST"])
 def generate_resume():
     try:
+        # 1. Get the incoming JSON body
         data = request.get_json()
 
         full_name = data.get("full_name")
@@ -21,9 +24,10 @@ def generate_resume():
         phone = data.get("phone")
         education = data.get("education")
         skills = data.get("skills")
-        work_experiences = data.get("work_experiences", [])
         job_description = data.get("job_description")
+        work_experiences = data.get("work_experiences", [])
 
+        # 2. Organize candidate info
         candidate_info = {
             "full_name": full_name,
             "email": email,
@@ -33,61 +37,45 @@ def generate_resume():
             "work_experiences": work_experiences
         }
 
-        # Run full multi-agent process
-        final_resume_json = run_resume_agent(candidate_info, job_description)
+        # 3. Run the agent process
+        final_resume = run_resume_agent(candidate_info, job_description)
 
-        # Create .docx file
-        doc = Document()
+        # 4. Load Word template
+        doc = DocxTemplate("templates/resume_template.docx")
 
-        doc.add_heading(full_name, 0)
-        doc.add_paragraph(f"{email} | {phone}")
-        doc.add_heading("Professional Summary", level=1)
-        doc.add_paragraph(final_resume_json["summary"])
+        context = {
+            "full_name": full_name,
+            "email": email,
+            "phone": phone,
+            "summary": final_resume["summary"],
+            "skills": ', '.join(final_resume["skills"]),
+            "education": final_resume["education"],
+            "experience": final_resume["experience"]
+        }
 
-        doc.add_heading("Skills", level=1)
-        for skill in final_resume_json["skills"]:
-            doc.add_paragraph(skill, style="List Bullet")
+        # 5. Render and save .docx
+        output_filename = f"{full_name.replace(' ', '_')}_resume.docx"
+        output_path = os.path.join(DOWNLOAD_FOLDER, output_filename)
+        doc.render(context)
+        doc.save(output_path)
 
-        doc.add_heading("Education", level=1)
-        doc.add_paragraph(final_resume_json["education"])
-
-        doc.add_heading("Experience", level=1)
-        for job in final_resume_json["experience"]:
-            doc.add_paragraph(f"{job['title']} at {job['company']} ({job['dates']})", style="Heading 2")
-            for bullet in job["bullets"]:
-                doc.add_paragraph(bullet, style="List Bullet")
-
-        # Save document
-        unique_id = str(uuid.uuid4())
-        filename = f"{unique_id}.docx"
-        filepath = os.path.join("downloads", filename)
-        os.makedirs("downloads", exist_ok=True)
-        doc.save(filepath)
-
-        # Convert .docx to HTML for preview
-        with open(filepath, "rb") as docx_file:
-            result = mammoth.convert_to_html(docx_file)
+        # 6. Convert to HTML for Preview
+        with open(output_path, "rb") as docx_file:
+            result = convert_to_html(docx_file)
             resume_html = result.value
 
-        download_link = f"/download/{filename}"
-
+        # 7. Return proper JSON (IMPORTANT)
         return jsonify({
-            "resume_text": resume_html,
-            "download_link": download_link
+            "download_link": f"/download/{output_filename}",
+            "resume_text": resume_html
         })
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 400
 
-# API route: Serve resume downloads
 @app.route("/download/<path:filename>")
-def download_resume(filename):
-    return send_from_directory("downloads", filename, as_attachment=True)
-
-# Web UI
-@app.route("/")
-def index():
-    return render_template("index.html")
+def download_file(filename):
+    return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
 
 if __name__ == "__main__":
     app.run(debug=True)
