@@ -7,17 +7,17 @@ import json
 
 # Load environment variables
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Helper function: call OpenAI
 def call_openai(messages, temperature=0.3):
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4-turbo",
         messages=messages,
         temperature=temperature,
         max_tokens=3000
     )
-    return response["choices"][0]["message"]["content"]
+    return response.choices[0].message.content
 
 # Agent Step 1: Analyze Candidate Info
 def agent_analyze(candidate_info, job_description):
