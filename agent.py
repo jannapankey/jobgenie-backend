@@ -19,25 +19,16 @@ def call_openai(messages, temperature=0.3):
     )
     return response.choices[0].message.content
 
-# Step 1: Analyze Candidate Info
-def agent_analyze(candidate_info, job_description):
+# Step 1: Analyze and Fill Missing Pieces (Combined)
+def agent_analyze_and_fill(candidate_info, job_description):
     messages = [
-        {"role": "system", "content": "You are an expert career coach. Analyze the candidate's info and detect missing or weak fields (work experience, skills, education). Respond ONLY with a clear JSON list of issues you find."},
+        {"role": "system", "content": "You are an expert resume assistant. Analyze the candidate's information and detect missing or weak fields (work experience, skills, education). Then immediately fill missing fields by inventing realistic, entry-level experience and suggesting relevant skills based on the job description. Return ONLY the completed candidate information, ready for resume drafting."},
         {"role": "user", "content": f"Candidate Info: {candidate_info}\nJob Description: {job_description}"}
-    ]
-    analysis = call_openai(messages)
-    return analysis
-
-# Step 2: Fill Missing Pieces
-def agent_fill_missing(candidate_info, job_description, analysis):
-    messages = [
-        {"role": "system", "content": "You are a resume builder agent. Based on candidate info and detected issues, intelligently fill missing fields. Invent realistic entry-level experience if needed. Suggest relevant skills based on the job."},
-        {"role": "user", "content": f"Candidate Info: {candidate_info}\nDetected Issues: {analysis}\nJob Description: {job_description}"}
     ]
     filled_info = call_openai(messages)
     return filled_info
 
-# Step 3: Draft Resume
+# Step 2: Draft Resume
 def agent_draft_resume(filled_info, job_description):
     messages = [
         {"role": "system", "content": "You are a professional resume writer. Based on completed candidate info, draft an ATS-optimized resume in EXACTLY this JSON format:\n\n{\n  \"summary\": \"5-sentence professional summary.\",\n  \"skills\": [\"Skill1\", \"Skill2\", \"Skill3\"],\n  \"education\": \"Degree, School, Year\",\n  \"experience\": [\n    {\n      \"title\": \"Job Title\",\n      \"company\": \"Company\",\n      \"dates\": \"Start-End\",\n      \"bullets\": [\"Achievement bullet 1.\", \"Bullet 2.\", \"Bullet 3.\"]\n    }\n  ]\n}\n\nRespond ONLY with valid JSON."},
@@ -50,7 +41,7 @@ def agent_draft_resume(filled_info, job_description):
         raise ValueError("Failed to parse resume JSON. Raw output:\n" + resume_json_text)
     return resume_json
 
-# Step 4: Review and Improve Resume
+# Step 3: Review and Improve Resume
 def agent_review_and_improve(resume_json, job_description):
     messages = [
         {"role": "system", "content": "You are a resume reviewer. Improve this resume JSON to better match the job. Ensure:\n- 5 full sentences in the summary\n- At least 3 strong bullets per job\n- Skills match job description\nReturn only the FINAL corrected JSON."},
@@ -65,16 +56,13 @@ def agent_review_and_improve(resume_json, job_description):
 
 # Main: Run the full agent chain
 def run_resume_agent(candidate_info, job_description):
-    print("Step 1: Analyzing candidate info...")
-    analysis = agent_analyze(candidate_info, job_description)
+    print("Step 1: Analyzing and filling candidate info...")
+    filled_info = agent_analyze_and_fill(candidate_info, job_description)
 
-    print("Step 2: Filling missing information...")
-    filled_info = agent_fill_missing(candidate_info, job_description, analysis)
-
-    print("Step 3: Drafting resume...")
+    print("Step 2: Drafting resume...")
     draft_resume = agent_draft_resume(filled_info, job_description)
 
-    print("Step 4: Reviewing and improving resume...")
+    print("Step 3: Reviewing and improving resume...")
     final_resume = agent_review_and_improve(draft_resume, job_description)
 
     return final_resume
