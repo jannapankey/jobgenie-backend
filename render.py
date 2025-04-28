@@ -1,27 +1,40 @@
-# render.py
+# In render.py
 
-def render_resume_html(resume_json):
-    html = ""
+def render_resume_html(resume_json, full_name="Unknown", email="Unknown", phone="Unknown"):
+    summary = resume_json.get("summary", "")
+    education = resume_json.get("education", "")
+    skills_list = resume_json.get("skills", [])
+    skills = ", ".join(skills_list)
+    experiences = resume_json.get("experience", [])
 
-    # Professional Summary
-    html += "<h1>Professional Summary</h1>\n"
-    html += f"<p>{resume_json['summary']}</p>\n"
+    html = f"""
+    <h1>{full_name}</h1>
+    <p>Email: {email} | Phone: {phone}</p>
 
-    # Education
-    html += "<h1>Education</h1>\n"
-    html += f"<p>{resume_json['education']}</p>\n"
+    <h1>Professional Summary</h1>
+    <p>{summary}</p>
 
-    # Skills
-    html += "<h1>Skills</h1>\n"
-    html += f"<p>{', '.join(resume_json['skills'])}</p>\n"
+    <h1>Education</h1>
+    <p>{education}</p>
 
-    # Experience
-    html += "<h1>Experience</h1>\n"
-    for exp in resume_json['experience']:
-        html += f"<h2>{exp['title']} at {exp['company']} ({exp['dates']})</h2>\n"
-        html += "<ul>\n"
-        for bullet in exp['bullets']:
+    <h1>Skills</h1>
+    <p>{skills}</p>
+
+    <h1>Experience</h1>
+    """
+
+    for exp in experiences:
+        title = exp.get("title", "")
+        company = exp.get("company", "")
+        dates = exp.get("dates", "")
+        bullets = exp.get("bullets", [])
+
+        html += f"""
+        <h2>{title} at {company} ({dates})</h2>
+        <ul>
+        """
+        for bullet in bullets:
             html += f"<li>{bullet}</li>"
-        html += "</ul>\n"
+        html += "</ul>"
 
     return html
