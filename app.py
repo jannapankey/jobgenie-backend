@@ -68,7 +68,7 @@ def generate_resume():
         file_path = save_resume_as_docx(final_resume_json, filename)
 
         # 5. Create download link
-        download_link = f"/download/{os.path.basename(file_path)}"
+        download_link = f"https://jobgenie-backend-1.onrender.com/download/{os.path.basename(file_path)}"
 
         # 6. Return the result
         return jsonify({
