@@ -1,6 +1,7 @@
 Flask
+gunicorn
 openai
-docxtpl
+docx
+python-docx
 mammoth
 python-dotenv
-gunicorn
