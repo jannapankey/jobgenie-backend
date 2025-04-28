@@ -63,7 +63,8 @@ def generate_resume():
         # 4. Save Word doc
         safe_name = full_name.replace(" ", "_") or "Unknown_Candidate"
         filename = f"{safe_name}_resume.docx"
-        file_path = save_resume_as_docx(final_resume_json, filename)
+        file_path = save_resume_as_docx(rendered_resume, filename)   # <<< fixed this line
+
 
         # 5. Create download link
         download_link = f"https://jobgenie-backend-1.onrender.com/download/{os.path.basename(file_path)}"

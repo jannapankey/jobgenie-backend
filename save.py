@@ -1,52 +1,24 @@
 from docx import Document
+from bs4 import BeautifulSoup
 import os
 
-def save_resume_as_docx(resume_json, filename):
+def save_resume_as_docx(rendered_html, filename):
     document = Document()
 
-    # Extract fields
-    full_name = resume_json.get('full_name', 'Unknown Name')
-    email = resume_json.get('email', 'unknown@example.com')
-    phone = resume_json.get('phone', 'Unknown Phone')
-    summary = resume_json.get('summary', '')
-    education = resume_json.get('education', '')
-    skills = resume_json.get('skills', [])
-    experience_list = resume_json.get('experience', [])
+    # Parse HTML
+    soup = BeautifulSoup(rendered_html, "html.parser")
 
-    # Add Full Name at top
-    document.add_heading(full_name, level=0)
-    document.add_paragraph(f"Email: {email} | Phone: {phone}")
-
-    # Add a line break
-    document.add_paragraph()
-
-    # Professional Summary
-    document.add_heading('Professional Summary', level=1)
-    document.add_paragraph(summary)
-
-    # Education
-    document.add_heading('Education', level=1)
-    document.add_paragraph(education)
-
-    # Skills
-    document.add_heading('Skills', level=1)
-    if isinstance(skills, list):
-        skills_text = ', '.join(skills)
-    else:
-        skills_text = str(skills)
-    document.add_paragraph(skills_text)
-
-    # Experience
-    document.add_heading('Experience', level=1)
-    for exp in experience_list:
-        title = exp.get('title', 'No Title')
-        company = exp.get('company', 'No Company')
-        dates = exp.get('dates', 'No Dates')
-        bullets = exp.get('bullets', [])
-
-        document.add_heading(f"{title} at {company} ({dates})", level=2)
-        for bullet in bullets:
-            document.add_paragraph(bullet, style='List Bullet')
+    for element in soup.descendants:
+        if element.name == "h1":
+            p = document.add_paragraph(element.get_text())
+            p.style = "Heading 1"
+        elif element.name == "h2":
+            p = document.add_paragraph(element.get_text())
+            p.style = "Heading 2"
+        elif element.name == "p":
+            document.add_paragraph(element.get_text())
+        elif element.name == "li":
+            document.add_paragraph(element.get_text(), style="List Bullet")
 
     # Ensure downloads folder exists
     downloads_dir = os.path.join(os.getcwd(), "downloads")
