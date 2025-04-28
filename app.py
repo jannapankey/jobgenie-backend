@@ -1,5 +1,3 @@
-# app.py
-
 from flask import Flask, request, send_from_directory, jsonify
 import os
 from agent import run_resume_agent
@@ -79,3 +77,14 @@ def generate_resume():
     except Exception as e:
         print("Error in generate_resume:", e)
         return jsonify({"error": str(e)}), 500
+
+# Route to serve downloaded files
+@app.route("/download/<filename>")
+def download_file(filename):
+    try:
+        return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
+    except FileNotFoundError:
+        return jsonify({"error": "File not found"}), 404
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
